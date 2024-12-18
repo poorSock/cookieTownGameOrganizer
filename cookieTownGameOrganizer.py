@@ -10,15 +10,19 @@ intents.members = True
 bot = commands.Bot(command_prefix='!', intents=intents)
 
 # Replace these with your actual channel IDs
-SOURCE_CHANNEL_ID = 1188420636406714368  # Channel where games are posted
-THREE_THUMBS_UP_CHANNEL_ID = 1286040119316451368  # Channel for 3 thumbs up
-FOUR_THUMBS_UP_CHANNEL_ID = 1286040167550812330  # Channel for 4 thumbs up
+SOURCE_CHANNEL_ID = 1188420636406714368
+ARCHIVE_CHANNEL_ID = 1319071742223978506
+THREE_THUMBS_UP_CHANNEL_ID = 1286040119316451368
+FOUR_THUMBS_UP_CHANNEL_ID = 1286040167550812330
 
 @bot.event
 async def on_reaction_add(reaction, user):
     print(f'Recognized on_reaction_add event...')
     if reaction.message.channel.id != SOURCE_CHANNEL_ID:
         return  # Ignore reactions from other channels
+    
+    if reaction.emoji == '👎':
+        await move_message("Hey, a proposed game got a thumbs down and is moved to the archive:\n", reaction.message, ARCHIVE_CHANNEL_ID)
 
     if len(reaction.message.reactions) < 4:
         return  # Wait until there are at least 4 types of reactions
@@ -26,16 +30,12 @@ async def on_reaction_add(reaction, user):
     # Check if the message has exactly 4 reactions (thumbs up, thumbs down, shrug)
     reactions = reaction.message.reactions
     thumbs_up = 0
-    thumbs_down = 0
     shrug = 0
 
     for react in reactions:
         if react.emoji == '👍':
             print(f'Recognized thumbs up...')
             thumbs_up = thumbs_up + 1
-        elif react.emoji == '👎':
-            print(f'Recognized thumbs down...')
-            thumbs_down = thumbs_down + 1
         elif react.emoji == '🤷':
             print(f'Recognized shrug...')
             shrug = shrug + 1
@@ -50,9 +50,12 @@ async def on_reaction_add(reaction, user):
     elif thumbs_up == 3:
         # Move to the three-thumbs-up channel
         for react in reactions:
-            if react.emoji == '👎' or react.emoji == '🤷':
+            if react.emoji == '🤷':
                 users = [user async for user in reaction.users()]
         await move_message(f"Hey, a new game is liked by everyone but one unimportant person, boooh:\n{users[0]}", reaction.message, THREE_THUMBS_UP_CHANNEL_ID)
+    else:
+        # Game is not interesting, move to archive channel
+        await move_message("Hey, a proposed game got max 2 likes and is moved to the archive:\n", reaction.message, ARCHIVE_CHANNEL_ID)
 
 async def move_message(message_addition, message, destination_channel_id):
     destination_channel = bot.get_channel(destination_channel_id)
